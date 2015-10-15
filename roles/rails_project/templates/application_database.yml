@@ -1,0 +1,8 @@
+production:
+  adapter: mysql2
+  encoding: utf8
+  database: {{ app_name }}_production
+  pool: 5
+  host: {{ database_url }}
+  username: {{ mysql_db_user_name }}
+  password: {{ mysql_db_user_password }}

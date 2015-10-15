@@ -1,0 +1,6 @@
+- name: Creating Group Deploy
+  group: name=deploy state=present
+
+- name: Creating Deployer User
+  user: name=deployer shell=/bin/bash groups=deploy,wheel
+        home='/home/deployer' password="{{ deployer_password }}" 

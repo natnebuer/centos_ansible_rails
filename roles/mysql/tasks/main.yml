@@ -1,0 +1,42 @@
+- name: Adding MySQL Repo
+  yum: name=http://dev.mysql.com/get/mysql-community-release-el7-5.noarch.rpm state=present
+
+- name: Install MySQL
+  action: yum name={{ item }} state=present
+  with_items:
+    - MySQL-python
+    - mysql-server
+    - mysql-devel
+
+- name: Start MySQL Service
+  service: name=mysqld state=started enabled=true
+
+- name: update mysql root password for all root accounts
+  mysql_user: 
+    name: root 
+    host: "{{ item }}"
+    password: "{{ mysql_root_password }}"
+    login_user: "root"
+    login_password: "{{ mysql_root_password }}"
+    check_implicit_admin: yes
+    priv: "*.*:ALL,GRANT"
+  with_items:
+    - "{{ ansible_hostname }}"
+    - 127.0.0.1
+    - ::1
+    - localhost 
+
+- name: Creating database user 
+  mysql_user:
+    name: "{{ mysql_db_user_name }}" 
+    password: "{{ mysql_db_user_password }}" 
+    host: "{{ item }}"
+    login_user: "root"
+    login_password: "{{ mysql_root_password }}"    
+    priv: "*.*:ALL"
+    state: present
+  with_items:
+    - "{{ ansible_hostname }}"
+    - 127.0.0.1
+    - ::1
+    - localhost     

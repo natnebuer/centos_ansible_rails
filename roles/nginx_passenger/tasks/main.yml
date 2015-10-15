@@ -1,0 +1,85 @@
+---
+- name: Install Epel Release
+  yum: name=epel-release state=present
+
+- name: Install pygpgme 
+  yum: name=pygpgme state=present
+
+- name: Install curl
+  yum: name=curl state=present
+
+# Trying to follow phusion passenger installation instructions 
+# https://www.phusionpassenger.com/library/install/nginx/install/oss/el7/
+- name: Add Passenger to Yum respository
+  command: curl --fail -sSLo /etc/yum.repos.d/passenger.repo https://oss-binaries.phusionpassenger.com/yum/definitions/el-passenger.repo
+
+# Note that ansible 1.9.3 will not work
+# https://github.com/ansible/ansible-modules-core/issues/2013
+- name: Update Yum 
+  yum: name=* state=latest update_cache=yes
+
+- name: Install Nginx
+  yum: name="nginx" state=present
+
+- name: Install Passenger
+  yum: name="passenger" state=present
+
+- name: uncomment passenger configuration
+  replace:
+    dest: /etc/nginx/conf.d/passenger.conf
+    regexp: '#passenger'
+    replace: 'passenger'
+
+- name: Run Nginx
+  service: name=nginx state=started
+
+- name: Detecting HTTP rule on firewall
+  command: firewall-cmd --permanent --zone=public --query-service=http
+  register: http_setted
+  changed_when: false
+  ignore_errors: yes
+
+- name: Allowing HTTP to pass on firewall
+  command: firewall-cmd --permanent --zone=public --add-service=http
+  when: http_setted.stdout == 'no'
+
+- name: Detecting HTTPS rule on firewall
+  command: firewall-cmd --permanent --zone=public --query-service=https
+  register: https_setted
+  changed_when: false
+  ignore_errors: yes
+
+- name: Allowing HTTPS to pass on firewall
+  command: firewall-cmd --permanent --zone=public --add-service=https
+  when: https_setted.stdout == 'no'
+  
+- name: Reloading Firewall Config
+  command: firewall-cmd --reload
+
+# Because Nginx/Passenger installed their own ruby version, need to overwrite it
+
+# - name: check if ruby symlink is done
+#   stat: path=/bin/ruby
+#   register: bin_ruby_org
+
+# - name: check if ruby symlink is done
+#   stat: path=/usr/bin/ruby
+#   register: usr_bin_ruby_org
+
+# - debug: var=usr_bin_ruby_org
+
+# - name: renaming passenger prepackage ruby on /bin/ruby
+#   command: mv /bin/ruby /bin/ruby_org
+#   when: bin_ruby_org.stat.exists
+
+# - name: renaming passenger prepackage ruby on /usr/bin/ruby
+#   command: mv /usr/bin/ruby /usr/bin/ruby_org
+#   when: usr_bin_ruby_org.stat.exists
+
+# - name: apply symlink for newly installed ruby on /bin/ruby
+#   file: src=/usr/local/bin/ruby dest=/bin/ruby state=link force=yes
+#   when: bin_ruby_org.stat.exists == false
+
+# - name: apply symlink for newly installed ruby on /usr/bin/ruby
+#   file: src=/usr/local/bin/ruby dest=/usr/bin/ruby state=link force=yes
+#   when: usr_bin_ruby_org.stat.exists == false  

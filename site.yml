@@ -1,0 +1,29 @@
+---
+- name: Building Web Server
+  hosts: webservers
+  remote_user: vagrant
+  vars_files:
+    - vars/defaults.yml
+  roles:
+    - ruby  
+    # - nginx_passenger
+    # - git
+    # - users
+
+# - name: Building Database
+#   hosts: dbservers
+#   remote_user: vagrant
+#   sudo: yes  
+#   vars_files:
+#     - vars/defaults.yml
+#   roles:
+#     - mysql
+
+# - name: Building Rails Application
+#   hosts: webservers
+#   remote_user: vagrant
+#   sudo: yes  
+#   vars_files:
+#     - vars/defaults.yml
+#   roles:
+#     - rails_project

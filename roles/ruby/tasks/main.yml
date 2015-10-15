@@ -1,0 +1,59 @@
+- name: get current ruby version
+  shell: 'PATH=/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin ruby -v'
+  register: current_ruby_version
+  ignore_errors: true
+
+- debug: var=current_ruby_version
+
+- name: install the 'Development tools' package group
+  yum: name="@Development tools" state=present
+  when: current_ruby_version.stdout == ''
+
+- name: install ruby dependencies
+  action: yum name={{ item }} state=present
+  with_items:
+    - zlib
+    - zlib-devel
+    - openssl-devel
+  when: current_ruby_version.stdout == ''
+
+- name: download Ruby Source
+  get_url:
+    dest: /usr/src/
+    url: http://ring.shibaura-it.ac.jp/archives/lang/ruby/ruby-{{ ruby_version_to_install }}.tar.gz
+    sha256sum: '{{ ruby_checksum_sha256 }}'
+    force: no
+  when: current_ruby_version.stdout == ''
+
+- name: unpack ruby
+  unarchive:
+    copy: no
+    dest: /usr/src/
+    creates: /usr/src/ruby-{{ ruby_version_to_install }}
+    src: /usr/src/ruby-{{ ruby_version_to_install }}.tar.gz
+  when: current_ruby_version.stdout == ''
+
+- name: configure ruby
+  command: ./configure
+  args:
+    chdir: /usr/src/ruby-{{ ruby_version_to_install }}
+    creates: Makefile
+  when: current_ruby_version.stdout == ''
+
+- name: compile ruby
+  command: make
+  args:
+    chdir: /usr/src/ruby-{{ ruby_version_to_install }}
+    creates: ruby
+  when: current_ruby_version.stdout == ''
+
+- name: install ruby
+  command: make install
+  args:
+    chdir: /usr/src/ruby-{{ ruby_version_to_install }}
+  when: current_ruby_version.stdout == ''
+
+- name: update ruby gems
+  shell: "PATH=/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin gem update --system {{ ruby_gems_version }}" 
+
+
