@@ -1,52 +1,44 @@
 # ---
-# - name: Create Folders for web application
-#   file: path="/var/www/{{ app_name }}" recurse=yes state=directory group=deploy owner=deployer
+- name: Removing default nginx.conf.default
+  file: path="{{ nginx_install_path }}/conf/nginx.conf.default" state="absent"
+  become: yes
+  become_user: root
+  
+- name: Sending our default app passenger config
+  template: src=./../templates/nginx_application.conf dest="{{ nginx_install_path }}/conf/conf.d/{{ app_name }}.conf"
+  become: yes
+  become_user: root
 
-# - name: Removing default NGINX config in sites-enabled
-#   file: path="/etc/nginx/sites-enabled/default" state="absent"
+- name: git clone from repo
+  git: repo={{ source_code_url }} dest="{{ app_path }}/{{ app_name }}" clone=yes version=develop
 
-# - name: Removing default nginx.conf
-#   file: path="/etc/nginx/nginx.conf" state="absent" 
+- name: Sending the Database yml over
+  template: src=./../templates/application_database.yml dest="{{ app_path }}/{{ app_name }}/config/database.yml"
 
-# - name: Removing default nginx.conf.default
-#   file: path="/etc/nginx/nginx.conf.default" state="absent" 
+- name: Send Gemrc to deployer home directory
+  template: src=./../templates/gemrc dest="~/.gemrc"
 
-# - name: Sending our default NGINX config over
-#   template: src=./../templates/nginx.conf dest="/etc/nginx/nginx.conf"
+- name: install epel-release
+  yum: name=epel-release state=present
+  become: yes
+  become_user: root
 
-# - name: Sending our default app passenger config
-#   template: src=./../templates/nginx_application.conf dest="/etc/nginx/conf.d/{{ app_name }}.conf"
-
-# - name: git clone from repo
-#   git: repo={{ source_code_url }} dest="/var/www/{{ app_name }}/" clone=yes version=develop
-
-# # https://www.phusionpassenger.com/library/admin/nginx/troubleshooting/ruby/#upon-accessing-the-web-app-nginx-reports-a-permission-denied-error
-# - name: set application to be executable
-#   file: path="/var/www" mode="g+x,o+x" state=directory recurse=yes
-
-# - name: Sending the Database yml over
-#   template: src=./../templates/application_database.yml dest="/var/www/{{ app_name }}/config/database.yml"
-
-# - name: Send Gemrc to deployer home directory
-#   template: src=./../templates/gemrc dest="~/.gemrc"
-
-- name: Changing GEM_HOME to be writable by group rescursively
-  file: path="/usr/local/lib/ruby/gems" mode="o+rwx" state=directory recurse=yes
-
-# - name: Install bundler gem
-#   gem: name=bundler state=latest user_install=no
+- name: Install Node JS for Rails
+  yum: name=nodejs state=present
+  become: yes
+  become_user: root
 
 - name: Install bundler gem
-  command: gem install bundler
+  shell: 'source ~/.bash_profile && gem install bundler'
 
 - name: Run bundle install
-  command: bundle install --without development test chdir="/var/www/{{ app_name }}"
+  shell: source ~/.bash_profile && bundle install --without development test chdir="{{ app_path }}/{{ app_name }}"
 
 - name: Run rake db:migrate
-  shell: RAILS_ENV=production rake db:create db:migrate chdir="/var/www/{{ app_name }}"
+  shell: source ~/.bash_profile && RAILS_ENV=production rake db:create db:migrate chdir="{{ app_path }}/{{ app_name }}"
 
 - name: Precompile the assets
-  shell: RAILS_ENV=production rake assets:precompile chdir="/var/www/{{ app_name }}"
+  shell: source ~/.bash_profile && RAILS_ENV=production rake assets:precompile chdir="{{ app_path }}/{{ app_name }}"
 
-- name: Run Nginx
-  service: name=nginx state=started
+- name: start nginx 
+  shell: sudo ./nginx restart chdir=/etc/init.d

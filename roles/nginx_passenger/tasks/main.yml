@@ -1,85 +1,89 @@
 ---
-- name: Install Epel Release
-  yum: name=epel-release state=present
+- name: Install libcurl-devel
+  yum: name=libcurl-devel state=present
+  become: yes
+  become_user: root
 
-- name: Install pygpgme 
-  yum: name=pygpgme state=present
+- name: installing gem
+  shell: "source ~/.bash_profile && gem install passenger"
 
-- name: Install curl
-  yum: name=curl state=present
+- name: get login user PATH
+  shell: "source ~/.bash_profile && echo $PATH"
+  register: user_path
 
-# Trying to follow phusion passenger installation instructions 
-# https://www.phusionpassenger.com/library/install/nginx/install/oss/el7/
-- name: Add Passenger to Yum respository
-  command: curl --fail -sSLo /etc/yum.repos.d/passenger.repo https://oss-binaries.phusionpassenger.com/yum/definitions/el-passenger.repo
+- name: register if nginx is installed
+  stat: path={{ nginx_install_path }}
+  register: is_nginx_installed
 
-# Note that ansible 1.9.3 will not work
-# https://github.com/ansible/ansible-modules-core/issues/2013
-- name: Update Yum 
-  yum: name=* state=latest update_cache=yes
-
-- name: Install Nginx
-  yum: name="nginx" state=present
-
-- name: Install Passenger
-  yum: name="passenger" state=present
-
-- name: uncomment passenger configuration
-  replace:
-    dest: /etc/nginx/conf.d/passenger.conf
-    regexp: '#passenger'
-    replace: 'passenger'
-
-- name: Run Nginx
-  service: name=nginx state=started
+- name: installing nginx and passenger
+  shell: "PATH={{ user_path.stdout }} {{ install_ruby_path }}/bin/ruby {{ install_ruby_path }}/bin/passenger-install-nginx-module --auto --auto-download --prefix={{ nginx_install_path }}"
+  become: yes
+  become_user: root
+  when: is_nginx_installed.stat.exists == false
 
 - name: Detecting HTTP rule on firewall
   command: firewall-cmd --permanent --zone=public --query-service=http
   register: http_setted
   changed_when: false
   ignore_errors: yes
+  become: yes
+  become_user: root
 
 - name: Allowing HTTP to pass on firewall
   command: firewall-cmd --permanent --zone=public --add-service=http
   when: http_setted.stdout == 'no'
+  become: yes
+  become_user: root
 
 - name: Detecting HTTPS rule on firewall
   command: firewall-cmd --permanent --zone=public --query-service=https
   register: https_setted
   changed_when: false
   ignore_errors: yes
+  become: yes
+  become_user: root
 
 - name: Allowing HTTPS to pass on firewall
   command: firewall-cmd --permanent --zone=public --add-service=https
   when: https_setted.stdout == 'no'
+  become: yes
+  become_user: root  
   
 - name: Reloading Firewall Config
   command: firewall-cmd --reload
+  become: yes
+  become_user: root  
 
-# Because Nginx/Passenger installed their own ruby version, need to overwrite it
+- name: Getting Passenger Ruby config
+  shell: "source ~/.bash_profile && which ruby"
+  register: passenger_ruby_config
+  ignore_errors: yes
 
-# - name: check if ruby symlink is done
-#   stat: path=/bin/ruby
-#   register: bin_ruby_org
+- name: Getting Passenger Root path
+  shell: "source ~/.bash_profile && passenger-config --root"
+  register: passenger_ruby_root
+  ignore_errors: yes  
 
-# - name: check if ruby symlink is done
-#   stat: path=/usr/bin/ruby
-#   register: usr_bin_ruby_org
+- name: upload nginx init script
+  template: src=./../templates/init_nginx dest=/etc/rc.d/init.d/nginx
+  become: yes
+  become_user: root
 
-# - debug: var=usr_bin_ruby_org
+- name: excutable for init script
+  file: path=/etc/rc.d/init.d/nginx state=touch mode="u+x,g+x,o+x"
+  become: yes
+  become_user: root  
 
-# - name: renaming passenger prepackage ruby on /bin/ruby
-#   command: mv /bin/ruby /bin/ruby_org
-#   when: bin_ruby_org.stat.exists
+- name: Sending our default NGINX config over
+  template: src=./../templates/nginx.conf dest="{{ nginx_install_path }}/conf/nginx.conf" mode=0644
+  become: yes
+  become_user: root  
 
-# - name: renaming passenger prepackage ruby on /usr/bin/ruby
-#   command: mv /usr/bin/ruby /usr/bin/ruby_org
-#   when: usr_bin_ruby_org.stat.exists
+- name: make directory for conf.d 
+  file: path="{{ nginx_install_path }}/conf/conf.d" state=directory mode=0755 recurse=yes
+  become: yes
+  become_user: root
 
-# - name: apply symlink for newly installed ruby on /bin/ruby
-#   file: src=/usr/local/bin/ruby dest=/bin/ruby state=link force=yes
-#   when: bin_ruby_org.stat.exists == false
-
-# - name: apply symlink for newly installed ruby on /usr/bin/ruby
-#   file: src=/usr/local/bin/ruby dest=/usr/bin/ruby state=link force=yes
-#   when: usr_bin_ruby_org.stat.exists == false  
+# Honestly I don't know why system service does not work. any help will be nice.
+- name: start nginx 
+  shell: sudo ./nginx start chdir=/etc/init.d

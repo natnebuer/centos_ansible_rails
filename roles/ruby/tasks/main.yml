@@ -1,12 +1,17 @@
+---
+- name: get user home PATH
+  command: echo $HOME
+  register: home_path
+
 - name: get current ruby version
-  shell: 'PATH=/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin ruby -v'
+  shell: "PATH={{ home_path.stdout }}/bin ruby -v"
   register: current_ruby_version
   ignore_errors: true
 
-- debug: var=current_ruby_version
-
 - name: install the 'Development tools' package group
   yum: name="@Development tools" state=present
+  become: yes
+  become_user: root
   when: current_ruby_version.stdout == ''
 
 - name: install ruby dependencies
@@ -15,45 +20,48 @@
     - zlib
     - zlib-devel
     - openssl-devel
+  become: yes
+  become_user: root    
   when: current_ruby_version.stdout == ''
+
+- name: make source directory in user home
+  file: path="{{ home_path.stdout }}/src" state=directory mode=0755 recurse=yes
 
 - name: download Ruby Source
   get_url:
-    dest: /usr/src/
+    dest: "{{ home_path.stdout }}/src"
     url: http://ring.shibaura-it.ac.jp/archives/lang/ruby/ruby-{{ ruby_version_to_install }}.tar.gz
-    sha256sum: '{{ ruby_checksum_sha256 }}'
+    sha256sum: "{{ ruby_checksum_sha256 }}"
     force: no
   when: current_ruby_version.stdout == ''
 
 - name: unpack ruby
   unarchive:
     copy: no
-    dest: /usr/src/
-    creates: /usr/src/ruby-{{ ruby_version_to_install }}
-    src: /usr/src/ruby-{{ ruby_version_to_install }}.tar.gz
+    dest: "{{ home_path.stdout }}/src"
+    creates: "{{ home_path.stdout }}/src/ruby-{{ ruby_version_to_install }}"
+    src: "{{ home_path.stdout }}/src/ruby-{{ ruby_version_to_install }}.tar.gz"
   when: current_ruby_version.stdout == ''
 
 - name: configure ruby
-  command: ./configure
+  command: ./configure --prefix={{ home_path.stdout }}
   args:
-    chdir: /usr/src/ruby-{{ ruby_version_to_install }}
+    chdir: "{{ home_path.stdout }}/src/ruby-{{ ruby_version_to_install }}"
     creates: Makefile
   when: current_ruby_version.stdout == ''
 
 - name: compile ruby
   command: make
   args:
-    chdir: /usr/src/ruby-{{ ruby_version_to_install }}
+    chdir: "{{ home_path.stdout }}/src/ruby-{{ ruby_version_to_install }}"
     creates: ruby
   when: current_ruby_version.stdout == ''
 
 - name: install ruby
   command: make install
   args:
-    chdir: /usr/src/ruby-{{ ruby_version_to_install }}
+    chdir: "{{ home_path.stdout }}/src/ruby-{{ ruby_version_to_install }}"
   when: current_ruby_version.stdout == ''
 
 - name: update ruby gems
-  shell: "PATH=/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin gem update --system {{ ruby_gems_version }}" 
-
-
+  shell: "source ~/.bash_profile && gem update --system {{ ruby_gems_version }}" 

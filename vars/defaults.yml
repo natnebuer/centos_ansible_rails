@@ -1,0 +1,20 @@
+# Ruby version to install
+ruby_version_to_install: 2.1.6
+ruby_checksum_sha256: 1e1362ae7427c91fa53dc9c05aee4ee200e2d7d8970a891c5bd76bee28d28be4
+install_ruby_path: /home/vagrant
+ruby_gems_version: 2.4.7
+nginx_install_path: /opt/nginx
+
+#Mysql root user password
+mysql_root_password: << password >>
+
+#Create another db user without grant privilege
+mysql_db_user_name: db_user
+mysql_db_user_password: db_user_password
+
+# vars rails_project
+app_name: << app_name >>
+app_path: /home/vagrant/www/
+
+source_code_url: << git url >>
+database_url: localhost
