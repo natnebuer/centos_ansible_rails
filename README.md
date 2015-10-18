@@ -12,7 +12,7 @@ It was built with one command in mind to deploy the rails application to be test
 
 * Centos 7.1.5
 * MySQL 5.6 (GA)
-* [Phusion Passenger](https://www.phusionpassenger.com/) + nginx from Phusion's apt repo
+* [Phusion Passenger](https://www.phusionpassenger.com/) + nginx from Phusion
 * User Defined Ruby Version
 * Prepares an nginx vhost for a Rails app, 
 * Pull from Git Repo from user defined git url
@@ -39,4 +39,6 @@ Steps to use :
 - Tie up with Digital Ocean. 
 
 - Skip ` gem install passenger ` when it is already installed
+
+- Change to use Services instead of manually restarting nginx 
 
