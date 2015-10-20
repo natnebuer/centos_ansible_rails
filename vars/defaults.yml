@@ -17,4 +17,5 @@ app_name: << app_name >>
 app_path: /home/vagrant/www/
 
 source_code_url: << git url >>
+git_branch: << branch name >>
 database_url: localhost

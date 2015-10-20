@@ -10,7 +10,7 @@
   become_user: root
 
 - name: git clone from repo
-  git: repo={{ source_code_url }} dest="{{ app_path }}/{{ app_name }}" clone=yes version=develop
+  git: repo={{ source_code_url }} dest="{{ app_path }}/{{ app_name }}" clone=yes version={{ git_branch }}
 
 - name: Sending the Database yml over
   template: src=./../templates/application_database.yml dest="{{ app_path }}/{{ app_name }}/config/database.yml"
